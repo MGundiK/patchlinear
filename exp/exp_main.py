@@ -21,9 +21,7 @@ warnings.filterwarnings('ignore')
 
 
 # Model registry: add new models here without touching the rest of the file.
-MODEL_DICT = {
-    'PatchLinear': PatchLinear,
-}
+
 
 
 class Exp_Main(Exp_Basic):
@@ -31,12 +29,16 @@ class Exp_Main(Exp_Basic):
         super().__init__(args)
 
     def _build_model(self):
-        if self.args.model not in MODEL_DICT:
+        model_dict = {
+            'PatchLinear': PatchLinear,
+        }
+        model = model_dict[self.args.model].Model(self.args).float()
+        if self.args.model not in model_dict:
             raise ValueError(
                 f"Unknown model '{self.args.model}'. "
-                f"Available: {list(MODEL_DICT.keys())}"
+                f"Available: {list(model_dict.keys())}"
             )
-        model = MODEL_DICT[self.args.model].Model(self.args).float()
+
         if self.args.use_multi_gpu and self.args.use_gpu:
             model = nn.DataParallel(model, device_ids=self.args.device_ids)
         return model
