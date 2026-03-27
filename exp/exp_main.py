@@ -32,12 +32,14 @@ class Exp_Main(Exp_Basic):
         model_dict = {
             'PatchLinear': PatchLinear,
         }
-        model = model_dict[self.args.model].Model(self.args).float()
+        
         if self.args.model not in model_dict:
             raise ValueError(
                 f"Unknown model '{self.args.model}'. "
                 f"Available: {list(model_dict.keys())}"
             )
+
+        model = model_dict[self.args.model].Model(self.args).float()
 
         if self.args.use_multi_gpu and self.args.use_gpu:
             model = nn.DataParallel(model, device_ids=self.args.device_ids)
