@@ -16,6 +16,8 @@ parser.add_argument("--is_training",  type=int, default=1)
 parser.add_argument("--model_id",     type=str, default="test")
 parser.add_argument('--model', type=str, default='PatchLinear')
 parser.add_argument("--checkpoints",  type=str, default="./checkpoints/")
+parser.add_argument('--train_only', type=bool, default=False,
+                    help='train on full data without validation/test split')
 
 # ── data ──────────────────────────────────────────────────────────────────────
 parser.add_argument("--data",       type=str, default="ETTh1")
