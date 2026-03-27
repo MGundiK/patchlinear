@@ -14,7 +14,7 @@ parser.add_argument("--seed", type=int, default=2021)
 # ── basic ─────────────────────────────────────────────────────────────────────
 parser.add_argument("--is_training",  type=int, default=1)
 parser.add_argument("--model_id",     type=str, default="test")
-parser.add_argument("--model",        type=str, default="Model")
+parser.add_argument('--model', type=str, default='PatchLinear')
 parser.add_argument("--checkpoints",  type=str, default="./checkpoints/")
 
 # ── data ──────────────────────────────────────────────────────────────────────
