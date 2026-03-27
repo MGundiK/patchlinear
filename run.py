@@ -1,126 +1,148 @@
 import argparse
 import os
 import torch
-from exp.exp_main import Exp_Main
 import random
 import numpy as np
 
-fix_seed = 2021
-# fix_seed = 2022
-# fix_seed = 2023
-# fix_seed = 2024
-# fix_seed = 2025
-random.seed(fix_seed)
-torch.manual_seed(fix_seed)
-np.random.seed(fix_seed)
+# Seeds are set here and also accept --seed so multi-seed runs
+# can be launched from the shell script without editing this file.
+parser = argparse.ArgumentParser(description="Proposed Model")
 
-parser = argparse.ArgumentParser(description='xPatch')
+# ── reproducibility ──────────────────────────────────────────────────────────
+parser.add_argument("--seed", type=int, default=2021)
 
-# basic config
-parser.add_argument('--is_training', type=int, required=True, default=1, help='status')
-parser.add_argument('--train_only', type=bool, required=False, default=False, help='perform training on full input dataset without validation and testing')
-parser.add_argument('--model_id', type=str, required=True, default='test', help='model id')
-parser.add_argument('--model', type=str, required=True, default='xPatch',
-                    help='model name, options: [xPatch]')
+# ── basic ─────────────────────────────────────────────────────────────────────
+parser.add_argument("--is_training",  type=int, default=1)
+parser.add_argument("--model_id",     type=str, default="test")
+parser.add_argument("--model",        type=str, default="Model")
+parser.add_argument("--checkpoints",  type=str, default="./checkpoints/")
 
-# data loader
-parser.add_argument('--data', type=str, required=True, default='ETTh1', help='dataset type')
-parser.add_argument('--root_path', type=str, default='./dataset', help='root path of the data file')
-parser.add_argument('--data_path', type=str, default='ETTh1.csv', help='data file')
-parser.add_argument('--features', type=str, default='M',
-                    help='forecasting task, options:[M, S, MS]; M:multivariate predict multivariate, S:univariate predict univariate, MS:multivariate predict univariate')
-parser.add_argument('--target', type=str, default='OT', help='target feature in S or MS task')
-parser.add_argument('--freq', type=str, default='h',
-                    help='freq for time features encoding, options:[s:secondly, t:minutely, h:hourly, d:daily, b:business days, w:weekly, m:monthly], you can also use more detailed freq like 15min or 3h')
-parser.add_argument('--checkpoints', type=str, default='./checkpoints/', help='location of model checkpoints')
-parser.add_argument('--embed', type=str, default='timeF',
-                        help='time features encoding, options:[timeF, fixed, learned]')
+# ── data ──────────────────────────────────────────────────────────────────────
+parser.add_argument("--data",       type=str, default="ETTh1")
+parser.add_argument("--root_path",  type=str, default="./dataset/")
+parser.add_argument("--data_path",  type=str, default="ETTh1.csv")
+parser.add_argument("--features",   type=str, default="M",
+                    help="M: multivariate->multivariate")
+parser.add_argument("--target",     type=str, default="OT")
+parser.add_argument("--freq",       type=str, default="h")
+parser.add_argument("--embed",      type=str, default="timeF")
 
-# forecasting task
-parser.add_argument('--seq_len', type=int, default=96, help='input sequence length')
-parser.add_argument('--label_len', type=int, default=48, help='start token length')
-parser.add_argument('--pred_len', type=int, default=96, help='prediction sequence length')
-parser.add_argument('--enc_in', type=int, default=7, help='encoder input size')
+# ── forecasting ───────────────────────────────────────────────────────────────
+parser.add_argument("--seq_len",   type=int, default=96)
+parser.add_argument("--label_len", type=int, default=48)
+parser.add_argument("--pred_len",  type=int, default=96)
+parser.add_argument("--enc_in",    type=int, default=7)
 
-# Patching
-parser.add_argument('--patch_len', type=int, default=16, help='patch length')
-parser.add_argument('--stride', type=int, default=8, help='stride')
-parser.add_argument('--padding_patch', default='end', help='None: None; end: padding on the end')
+# ── model architecture ────────────────────────────────────────────────────────
+parser.add_argument("--d_model",    type=int,   default=64)
+parser.add_argument("--t_ff",       type=int,   default=128)   # 2 * d_model
+parser.add_argument("--c_ff",       type=int,   default=16)    # max(16,min(C//4,128))
+parser.add_argument("--patch_len",  type=int,   default=16)
+parser.add_argument("--stride",     type=int,   default=8)
+parser.add_argument("--dw_kernel",  type=int,   default=7,     # A6
+                    help="DWConv kernel size: 3 / 7 / 13")
+parser.add_argument("--small_kernel", type=int, default=3)
+parser.add_argument("--alpha",      type=float, default=0.3)   # EMA smoothing
 
-# Moving Average
-parser.add_argument('--ma_type', type=str, default='ema', help='reg, ema, dema')
-parser.add_argument('--alpha', type=float, default=0.3, help='alpha')
-parser.add_argument('--beta', type=float, default=0.3, help='beta')
+# ── dropout ───────────────────────────────────────────────────────────────────
+parser.add_argument("--t_dropout",     type=float, default=0.1)
+parser.add_argument("--c_dropout",     type=float, default=0.1)
+parser.add_argument("--embed_dropout", type=float, default=0.1)
+parser.add_argument("--head_dropout",  type=float, default=0.1)
 
-# optimization
-parser.add_argument('--num_workers', type=int, default=10, help='data loader num workers')
-parser.add_argument('--itr', type=int, default=1, help='experiments times')
-parser.add_argument('--train_epochs', type=int, default=100, help='train epochs')
-parser.add_argument('--batch_size', type=int, default=32, help='batch size of train input data')
-parser.add_argument('--patience', type=int, default=10, help='early stopping patience')
-parser.add_argument('--learning_rate', type=float, default=0.0001, help='optimizer learning rate')
-parser.add_argument('--des', type=str, default='test', help='exp description')
-parser.add_argument('--loss', type=str, default='mse', help='loss function')
-parser.add_argument('--lradj', type=str, default='type1', help='adjust learning rate')
-parser.add_argument('--use_amp', action='store_true', help='use automatic mixed precision training', default=False)
-parser.add_argument('--revin', type=int, default=1, help='RevIN; True 1 False 0')
-# parser.add_argument('--warmup_epochs',type=int,default = 0)
+# ── ablation switches ─────────────────────────────────────────────────────────
+parser.add_argument("--use_reparam",        type=int, default=0,
+                    help="Structural reparameterisation (0/1)")
+parser.add_argument("--use_decomp",         type=int, default=1,  # A1
+                    help="EMA decomposition (0/1)")
+parser.add_argument("--use_trend_stream",   type=int, default=1,  # A2b
+                    help="Trend linear stream (0/1)")
+parser.add_argument("--use_seas_stream",    type=int, default=1,  # A2a
+                    help="Seasonal CNN stream (0/1)")
+parser.add_argument("--use_fusion_gate",    type=int, default=1,  # A3
+                    help="Input-dependent stream fusion gate (0/1)")
+parser.add_argument("--use_cross_channel",  type=int, default=1,  # A4a
+                    help="Cross-channel VGM (0/1)")
+parser.add_argument("--use_alpha_gate",     type=int, default=1,  # A4b
+                    help="Per-channel alpha mixing gate (0/1)")
 
-# GPU
-parser.add_argument('--use_gpu', type=bool, default=True, help='use gpu')
-parser.add_argument('--gpu', type=int, default=0, help='gpu')
-parser.add_argument('--use_multi_gpu', action='store_true', help='use multiple gpus', default=False)
-parser.add_argument('--devices', type=str, default='0,1,2,3', help='device ids of multile gpus')
-parser.add_argument('--test_flop', action='store_true', default=False, help='See utils/tools for usage')
+# ── optimisation ──────────────────────────────────────────────────────────────
+parser.add_argument("--num_workers",    type=int,   default=10)
+parser.add_argument("--itr",           type=int,   default=1)
+parser.add_argument("--train_epochs",  type=int,   default=100)
+parser.add_argument("--batch_size",    type=int,   default=32)
+parser.add_argument("--patience",      type=int,   default=10)
+parser.add_argument("--learning_rate", type=float, default=0.0001)
+parser.add_argument("--des",           type=str,   default="Exp")
+parser.add_argument("--loss",          type=str,   default="mae")
+parser.add_argument("--lradj",         type=str,   default="sigmoid")
+parser.add_argument("--use_amp",       action="store_true", default=False)
+
+# ── GPU ───────────────────────────────────────────────────────────────────────
+parser.add_argument("--use_gpu",       type=bool, default=True)
+parser.add_argument("--gpu",           type=int,  default=0)
+parser.add_argument("--use_multi_gpu", action="store_true", default=False)
+parser.add_argument("--devices",       type=str,  default="0,1,2,3")
 
 args = parser.parse_args()
 
+# ── set seeds ─────────────────────────────────────────────────────────────────
+random.seed(args.seed)
+torch.manual_seed(args.seed)
+np.random.seed(args.seed)
+
+# ── convert int flags to bool ─────────────────────────────────────────────────
+args.use_reparam       = bool(args.use_reparam)
+args.use_decomp        = bool(args.use_decomp)
+args.use_trend_stream  = bool(args.use_trend_stream)
+args.use_seas_stream   = bool(args.use_seas_stream)
+args.use_fusion_gate   = bool(args.use_fusion_gate)
+args.use_cross_channel = bool(args.use_cross_channel)
+args.use_alpha_gate    = bool(args.use_alpha_gate)
+
 args.use_gpu = True if torch.cuda.is_available() and args.use_gpu else False
-
 if args.use_gpu and args.use_multi_gpu:
-    args.dvices = args.devices.replace(' ', '')
-    device_ids = args.devices.split(',')
-    args.device_ids = [int(id_) for id_ in device_ids]
-    args.gpu = args.device_ids[0]
+    args.devices    = args.devices.replace(" ", "")
+    device_ids      = args.devices.split(",")
+    args.device_ids = [int(x) for x in device_ids]
+    args.gpu        = args.device_ids[0]
 
-print('Args in experiment:')
-print(args)
+print("Args:", args)
 
+from exp.exp_main import Exp_Main
 Exp = Exp_Main
 
 if args.is_training:
     for ii in range(args.itr):
-        # setting record of experiments
-        setting = '{}_{}_{}_ft{}_sl{}_ll{}_pl{}_{}_{}'.format(
-            args.model_id,
-            args.model,
-            args.data,
-            args.features,
-            args.seq_len,
-            args.label_len,
-            args.pred_len,
-            args.des, ii)
-
-        exp = Exp(args)  # set experiments
-        print('>>>>>>>start training : {}>>>>>>>>>>>>>>>>>>>>>>>>>>'.format(setting))
+        setting = (
+            f"{args.model_id}_{args.model}_{args.data}_"
+            f"ft{args.features}_sl{args.seq_len}_pl{args.pred_len}_"
+            f"d{args.d_model}_dk{args.dw_kernel}_"
+            f"dec{int(args.use_decomp)}_"
+            f"ts{int(args.use_trend_stream)}_ss{int(args.use_seas_stream)}_"
+            f"fg{int(args.use_fusion_gate)}_"
+            f"cc{int(args.use_cross_channel)}_ag{int(args.use_alpha_gate)}_"
+            f"{args.des}_{ii}"
+        )
+        exp = Exp(args)
+        print(f">>>>>>>start training: {setting}")
         exp.train(setting)
-
-        print('>>>>>>>testing : {}<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<'.format(setting))
+        print(f">>>>>>>testing: {setting}")
         exp.test(setting)
-
         torch.cuda.empty_cache()
 else:
     ii = 0
-    setting = '{}_{}_{}_ft{}_sl{}_ll{}_pl{}_{}_{}'.format(args.model_id,
-                                                          args.model,
-                                                          args.data,
-                                                          args.features,
-                                                          args.seq_len,
-                                                          args.label_len,
-                                                          args.pred_len,
-                                                          args.des, ii)
-
-    exp = Exp(args)  # set experiments
-    print('>>>>>>>testing : {}<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<'.format(setting))
+    setting = (
+        f"{args.model_id}_{args.model}_{args.data}_"
+        f"ft{args.features}_sl{args.seq_len}_pl{args.pred_len}_"
+        f"d{args.d_model}_dk{args.dw_kernel}_"
+        f"dec{int(args.use_decomp)}_"
+        f"ts{int(args.use_trend_stream)}_ss{int(args.use_seas_stream)}_"
+        f"fg{int(args.use_fusion_gate)}_"
+        f"cc{int(args.use_cross_channel)}_ag{int(args.use_alpha_gate)}_"
+        f"{args.des}_{ii}"
+    )
+    exp = Exp(args)
+    print(f">>>>>>>testing: {setting}")
     exp.test(setting, test=1)
     torch.cuda.empty_cache()
