@@ -298,8 +298,8 @@ class Backbone(nn.Module):
             )
 
         # ── Global token: one learnable vector per channel (XLinear) ──────────
-        #self.glob_token = nn.Parameter(torch.zeros(1, channel, d_model))
-        self.glob_token = nn.Parameter(torch.ones(1, channel, d_model))
+        self.glob_token = nn.Parameter(torch.zeros(1, channel, d_model))
+        #self.glob_token = nn.Parameter(torch.ones(1, channel, d_model))
 
 
         # ── TGM: temporal gating (XLinear, unchanged) ─────────────────────────
