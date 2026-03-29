@@ -191,16 +191,18 @@ for dataset_entry in "${DATASETS[@]}"; do
       --des Exp
     )
 
-    if [ "$MULTI_SEED" -eq 1 ]; then
-      for SEED in "${SEEDS[@]}"; do
-        run_single "${NAME}_pl${PRED_LEN}_full_s${SEED}" \
-          --model_id "${NAME}_${PRED_LEN}_full_s${SEED}" \
-          --seed "${SEED}" "${COMMON[@]}"
-      done
-    else
-      run_single "${NAME}_pl${PRED_LEN}_full" \
-        --model_id "${NAME}_${PRED_LEN}_full" \
-        --seed 2021 "${COMMON[@]}"
+    if [ "$RUN_FULL" -eq 1 ]; then
+      if [ "$MULTI_SEED" -eq 1 ]; then
+        for SEED in "${SEEDS[@]}"; do
+          run_single "${NAME}_pl${PRED_LEN}_full_s${SEED}" \
+            --model_id "${NAME}_${PRED_LEN}_full_s${SEED}" \
+            --seed "${SEED}" "${COMMON[@]}"
+        done
+      else
+        run_single "${NAME}_pl${PRED_LEN}_full" \
+          --model_id "${NAME}_${PRED_LEN}_full" \
+          --seed 2021 "${COMMON[@]}"
+      fi
     fi
 
     if [ "$RUN_ABLATIONS" -eq 1 ]; then
