@@ -23,7 +23,7 @@ for SEED in 2021 2022 2023; do
       --pred_len "$PRED_LEN" --enc_in 8 \
       --d_model 64 --t_ff 128 --c_ff 16 \
       --patch_len 16 --stride 8 --dw_kernel 7 --alpha 0.3 \
-      --batch_size 32 --learning_rate 0.0001 \
+      --batch_size 32 --learning_rate 0.00001 \
       --lradj sigmoid --train_epochs 100 --patience 10 \
       --model PatchLinear --seed "$SEED" --des Exp \
       --model_id "Exchange_${PRED_LEN}_s${SEED}"
