@@ -49,8 +49,8 @@ def data_provider(args, flag):
     )
     print(flag, len(data_set))
     if flag == 'train' and hasattr(args, 'few_shot_ratio') and args.few_shot_ratio < 1.0:
-    n = max(1, int(len(data_set) * args.few_shot_ratio))
-    data_set = Subset(data_set, range(n))
+        n = max(1, int(len(data_set) * args.few_shot_ratio))
+        data_set = Subset(data_set, range(n))
     data_loader = DataLoader(
         data_set,
         batch_size=batch_size,
