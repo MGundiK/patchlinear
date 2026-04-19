@@ -149,7 +149,8 @@ class Exp_Main(Exp_Basic):
 
         best_model_path = os.path.join(path, 'checkpoint.pth')
         self.model.load_state_dict(torch.load(best_model_path))
-        os.remove(best_model_path)
+        if not getattr(self.args, 'keep_checkpoint', False):
+            os.remove(best_model_path)
         return self.model
 
     def test(self, setting, test=0):
