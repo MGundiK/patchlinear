@@ -18,6 +18,8 @@ parser.add_argument('--model', type=str, default='PatchLinear')
 parser.add_argument("--checkpoints",  type=str, default="./checkpoints/")
 parser.add_argument('--train_only', type=bool, default=False,
                     help='train on full data without validation/test split')
+parser.add_argument('--keep_checkpoint', action='store_true', default=False,
+    help='Keep checkpoint file after training (needed for zero-shot eval)')
 
 # ── data ──────────────────────────────────────────────────────────────────────
 parser.add_argument("--data",       type=str, default="ETTh1")
