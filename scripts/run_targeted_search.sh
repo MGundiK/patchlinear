@@ -149,7 +149,7 @@ for L in 96 192 336 512 720; do
       TAG="Solar_pl96_L${L}_p${P}s${S}_k${K}"
       run_one "$TAG" \
         --is_training 1 --root_path ./dataset/ \
-        --data_path solar_AL.txt --data Solar --features M \
+        --data_path solar.txt --data Solar --features M \
         --seq_len ${L} --label_len 48 --pred_len 96 --enc_in 137 \
         --d_model 192 --t_ff 384 --c_ff 34 --alpha 0.3 \
         --patch_len ${P} --stride ${S} --dw_kernel ${K} \
